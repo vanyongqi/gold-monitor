@@ -3,7 +3,7 @@
 bin/
 tmp/
 data/
-gold-monitor
+/gold-monitor
 *.db
 *.db-shm
 *.db-wal
