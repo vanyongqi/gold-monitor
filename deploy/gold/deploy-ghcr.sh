@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-IMAGE="${IMAGE:-ghcr.io/REPO_OWNER/gold-monitor:latest}"
+IMAGE="${IMAGE:-ghcr.io/vanyongqi/gold-monitor:latest}"
 CONTAINER_NAME="${CONTAINER_NAME:-gold-monitor}"
 HOST_PORT="${HOST_PORT:-127.0.0.1:18090:8080}"
 STORAGE_DIR="${STORAGE_DIR:-/opt/gold-monitor/storage}"
