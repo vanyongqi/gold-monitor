@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>黄金监控台</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="chart-tooltip" class="chart-tooltip hidden"></div>
+
+    <div id="auth-screen" class="auth-shell">
+      <div class="auth-card">
+        <div class="auth-brand">
+          <p class="eyebrow">Gold Monitor</p>
+          <h1>登录后直接进入专业监控台</h1>
+          <p>不再分什么小白、老手、分批建仓。登录后直接看统一版首页。</p>
+        </div>
+
+        <div class="auth-panel">
+          <div class="auth-switch">
+            <button id="show-login" class="active">登录</button>
+            <button id="show-register">注册</button>
+          </div>
+
+          <div id="login-form" class="auth-form">
+            <label>
+              <span>手机号 / 昵称</span>
+              <input id="login-identity" placeholder="演示用，随便填" />
+            </label>
+            <label>
+              <span>密码</span>
+              <input id="login-password" type="password" placeholder="演示用，随便填" />
+            </label>
+            <button id="login-btn" class="primary-button auth-button">进入监控台</button>
+          </div>
+
+          <div id="register-form" class="auth-form hidden">
+            <label>
+              <span>昵称</span>
+              <input id="register-name" placeholder="例如：阿金" />
+            </label>
+            <label>
+              <span>手机号</span>
+              <input id="register-phone" placeholder="演示用，随便填" />
+            </label>
+            <label>
+              <span>密码</span>
+              <input id="register-password" type="password" placeholder="演示用，随便填" />
+            </label>
+            <button id="register-btn" class="primary-button auth-button">创建并进入</button>
+          </div>
+
+          <p class="muted auth-tip">登录后就是统一的专业模式：首页左侧做摘要，右侧大图做主视角。</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="app-shell" class="page-shell hidden">
+      <header class="hero compact-hero">
+        <div>
+          <div class="hero-topline">
+            <p class="eyebrow">Gold Monitor</p>
+            <div class="hero-chips">
+              <span id="user-badge" class="user-badge">未登录</span>
+            </div>
+          </div>
+          <h1>黄金监控台</h1>
+          <p id="hero-copy" class="hero-copy">左侧看仓位摘要和关键统计，右侧看主趋势图，图下看实时监控。</p>
+        </div>
+        <div class="hero-meta compact-meta">
+          <div class="meta-card">
+            <span>刷新频率</span>
+            <strong id="refresh-interval">60 秒</strong>
+          </div>
+          <div class="meta-card">
+            <span>数据源</span>
+            <strong>上金所公开延时行情</strong>
+          </div>
+          <div class="meta-card">
+            <span>交易状态</span>
+            <strong id="hero-session-status">判断中</strong>
+          </div>
+        </div>
+      </header>
+
+      <section class="toolbar compact-toolbar">
+        <label>
+          <span>合约</span>
+          <input id="instrument" value="Au99.99" />
+        </label>
+        <label>
+          <span>成本价</span>
+          <input id="cost" type="number" step="0.01" placeholder="未录入可留空" />
+        </label>
+        <label>
+          <span>克数</span>
+          <input id="grams" type="number" step="0.01" placeholder="未录入可留空" />
+        </label>
+        <label>
+          <span>卖出手续费</span>
+          <input id="sell-fee" type="number" step="0.0001" value="0.004" />
+        </label>
+        <button id="refresh-btn" class="primary-button">立即刷新</button>
+      </section>
+
+      <main id="main-grid" class="content-grid compact-grid layout-multi">
+        <section class="conclusion-panel compact-panel">
+          <div class="conclusion-top">
+            <div class="section-label">当前结论</div>
+            <div id="session-status" class="session-pill session-pill-neutral">交易状态判断中</div>
+          </div>
+          <h2 id="advice-summary">加载中...</h2>
+          <p id="advice-interpretation" class="muted">正在获取最新行情。</p>
+          <p id="session-detail" class="muted session-detail">正在判断上金所日盘/夜盘状态。</p>
+
+          <div class="decision-strip">
+            <div class="decision-box">
+              <span>当前价</span>
+              <strong id="quote-price">-</strong>
+            </div>
+            <div class="decision-box">
+              <span>建议动作</span>
+              <strong id="entry-action">-</strong>
+            </div>
+            <div class="decision-box">
+              <span>更新时间</span>
+              <strong id="updated-at">-</strong>
+            </div>
+          </div>
+        </section>
+
+        <section id="summary-panel" class="side-card compact-side-card">
+          <div class="section-label">仓位与统计总览</div>
+          <div class="summary-hero">
+            <div class="summary-kicker">当前动作</div>
+            <div id="multi-action" class="summary-action">-</div>
+            <div id="multi-focus" class="summary-focus">等待更清晰的趋势或关键位信号</div>
+          </div>
+
+          <div class="summary-block">
+            <div class="summary-block-title">仓位核心</div>
+            <div class="summary-grid summary-grid-primary">
+              <div class="summary-stat">
+                <span>加权成本</span>
+                <strong id="multi-cost">-</strong>
+              </div>
+              <div class="summary-stat">
+                <span>总净收益</span>
+                <strong id="multi-profit">-</strong>
+              </div>
+              <div class="summary-stat">
+                <span>净收益率</span>
+                <strong id="multi-profit-rate">-</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="summary-block">
+            <div class="summary-block-title">区间统计</div>
+            <div class="summary-grid">
+              <div class="summary-stat summary-stat-compact">
+                <span>30天区间位置</span>
+                <strong id="multi-range-rank">-</strong>
+              </div>
+              <div class="summary-stat summary-stat-compact">
+                <span>支撑价格</span>
+                <strong id="multi-support-price">-</strong>
+              </div>
+              <div class="summary-stat summary-stat-compact">
+                <span>阻力价格</span>
+                <strong id="multi-resistance-price">-</strong>
+              </div>
+              <div class="summary-stat summary-stat-compact">
+                <span>30天振幅</span>
+                <strong id="multi-range-width">-</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="summary-note">
+            <div class="summary-block-title">指标说明</div>
+            <ul class="summary-meta">
+              <li>区间位置：当前价在近 30 天高低区间中的相对位置</li>
+              <li>支撑/阻力价格：近 30 天低点/高点的参考价格</li>
+              <li>净收益率：按录入成本和卖出手续费折算后的收益率</li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="chart-card chart-card-sub compact-chart-sub">
+          <div class="card-head">
+            <div>
+              <div class="section-label">监控曲线</div>
+              <h3 id="secondary-title">收益与实时监控</h3>
+              <p id="secondary-subtitle" class="muted chart-subtitle">用最近快照判断短线节奏，不和主趋势图抢主角。</p>
+            </div>
+            <div class="period-switch" id="monitor-periods">
+              <button data-period="live" class="active">实时</button>
+              <button data-period="profit">收益</button>
+            </div>
+          </div>
+          <div class="chart-frame chart-frame-sub">
+            <svg id="secondary-chart" viewBox="0 0 900 260" preserveAspectRatio="xMidYMid meet"></svg>
+          </div>
+          <p id="secondary-caption" class="muted">这条线来自后端统一抓价后的快照。</p>
+        </section>
+
+        <section class="reasons-card compact-reasons compact-reasons-inline">
+          <div class="section-label">判断依据</div>
+          <ul id="advice-reasons"></ul>
+        </section>
+
+        <section class="chart-card chart-card-main compact-chart-main">
+          <div class="card-head">
+            <div>
+              <div class="section-label">主趋势曲线</div>
+              <h3 id="primary-chart-title">仓位相关趋势图</h3>
+              <p id="primary-chart-subtitle" class="muted chart-subtitle">主图叠加回本线、目标线和区间位置参考，作为主要决策视角。</p>
+            </div>
+            <div class="period-switch" id="history-periods">
+              <button data-period="7">7天</button>
+              <button data-period="30" class="active">30天</button>
+              <button data-period="90">90天</button>
+              <button data-period="365">1年</button>
+            </div>
+          </div>
+          <div class="chart-frame chart-frame-main">
+            <svg id="history-chart" viewBox="0 0 900 320" preserveAspectRatio="xMidYMid meet"></svg>
+          </div>
+          <div class="chart-legend compact-legend">
+            <span><i class="legend-line price-line"></i>金价曲线</span>
+            <span><i class="legend-line break-line"></i>回本线</span>
+            <span><i class="legend-line target-line"></i>目标线</span>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="./chart-utils.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

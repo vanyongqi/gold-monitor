@@ -1,0 +1,9 @@
+.DS_Store
+.superpowers/
+bin/
+tmp/
+data/
+gold-monitor
+*.db
+*.db-shm
+*.db-wal
