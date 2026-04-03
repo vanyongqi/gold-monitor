@@ -16,8 +16,26 @@ import (
 func TestBuildFallsBackToLatestSnapshotWhenFetchQuoteFails(t *testing.T) {
 	t.Parallel()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		http.Error(w, "upstream failed", http.StatusBadGateway)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/quote":
+			http.Error(w, "upstream failed", http.StatusBadGateway)
+		case "/history":
+			_, _ = w.Write([]byte(`
+<table>
+<tr>
+  <td>2026-04-03</td>
+  <td>Au99.99</td>
+  <td>808</td>
+  <td>820</td>
+  <td>801</td>
+  <td>812.34</td>
+</tr>
+</table>
+`))
+		default:
+			http.NotFound(w, r)
+		}
 	}))
 	defer server.Close()
 
@@ -43,7 +61,9 @@ func TestBuildFallsBackToLatestSnapshotWhenFetchQuoteFails(t *testing.T) {
 	}
 
 	client := market.NewClient()
-	client.BaseURL = server.URL
+	client.BaseURL = server.URL + "/quote"
+	client.HistoryBaseURL = server.URL + "/history"
+	client.HTTPClient = server.Client()
 	svc := NewService(client)
 	svc.Store = repo
 
@@ -69,6 +89,8 @@ func TestBuildReturnsErrorWhenFetchQuoteFailsAndNoFallback(t *testing.T) {
 
 	client := market.NewClient()
 	client.BaseURL = server.URL
+	client.HistoryBaseURL = server.URL
+	client.HTTPClient = server.Client()
 	svc := NewService(client)
 
 	_, err := svc.Build(context.Background(), "Au99.99", advice.Position{})
@@ -80,8 +102,10 @@ func TestBuildReturnsErrorWhenFetchQuoteFailsAndNoFallback(t *testing.T) {
 func TestBuildFallsBackToOlderSnapshotWhenMarketIsClosed(t *testing.T) {
 	t.Parallel()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`<h1>上海黄金交易所2026年04月04日延时行情</h1>
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/quote":
+			_, _ = w.Write([]byte(`<h1>上海黄金交易所2026年04月04日延时行情</h1>
 <tr class="ininfo">
   <td class="insid">Au99.99</td>
   <td>0.0</td>
@@ -89,6 +113,22 @@ func TestBuildFallsBackToOlderSnapshotWhenMarketIsClosed(t *testing.T) {
   <td>0.0</td>
   <td>0.0</td>
 </tr>`))
+		case "/history":
+			_, _ = w.Write([]byte(`
+<table>
+<tr>
+  <td>2026-04-02</td>
+  <td>Au99.99</td>
+  <td>808</td>
+  <td>820</td>
+  <td>801</td>
+  <td>812.34</td>
+</tr>
+</table>
+`))
+		default:
+			http.NotFound(w, r)
+		}
 	}))
 	defer server.Close()
 
@@ -114,7 +154,9 @@ func TestBuildFallsBackToOlderSnapshotWhenMarketIsClosed(t *testing.T) {
 	}
 
 	client := market.NewClient()
-	client.BaseURL = server.URL
+	client.BaseURL = server.URL + "/quote"
+	client.HistoryBaseURL = server.URL + "/history"
+	client.HTTPClient = server.Client()
 	svc := NewService(client)
 	svc.Store = repo
 
@@ -124,5 +166,57 @@ func TestBuildFallsBackToOlderSnapshotWhenMarketIsClosed(t *testing.T) {
 	}
 	if got.Quote.Price != fallback.Price {
 		t.Fatalf("quote price = %.2f, want %.2f", got.Quote.Price, fallback.Price)
+	}
+}
+
+func TestBuildFallsBackToLatestHistoryWhenNoValidSnapshotExists(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/quote":
+			_, _ = w.Write([]byte(`<h1>上海黄金交易所2026年04月04日延时行情</h1>
+<tr class="ininfo">
+  <td class="insid">Au99.99</td>
+  <td>0.0</td>
+  <td>0.0</td>
+  <td>0.0</td>
+  <td>0.0</td>
+</tr>`))
+		case "/history":
+			_, _ = w.Write([]byte(`
+<table>
+<tr>
+  <td>2026-04-03</td>
+  <td>Au99.99</td>
+  <td>1030.00</td>
+  <td>1042.00</td>
+  <td>1020.00</td>
+  <td>1034.42</td>
+</tr>
+</table>
+`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	client := market.NewClient()
+	client.BaseURL = server.URL + "/quote"
+	client.HistoryBaseURL = server.URL + "/history"
+	client.HTTPClient = server.Client()
+
+	svc := NewService(client)
+
+	got, err := svc.Build(context.Background(), "Au99.99", advice.Position{})
+	if err != nil {
+		t.Fatalf("Build() err = %v", err)
+	}
+	if got.Quote.Price != 1034.42 {
+		t.Fatalf("quote price = %.2f, want 1034.42", got.Quote.Price)
+	}
+	if got.Quote.QuoteDate.Format("2006-01-02") != "2026-04-03" {
+		t.Fatalf("quote date = %s, want 2026-04-03", got.Quote.QuoteDate.Format("2006-01-02"))
 	}
 }

@@ -31,9 +31,10 @@ type Quote struct {
 }
 
 type Client struct {
-	BaseURL    string
-	HTTPClient *http.Client
-	now        func() time.Time
+	BaseURL        string
+	HistoryBaseURL string
+	HTTPClient     *http.Client
+	now            func() time.Time
 }
 
 func NewClient() *Client {
@@ -133,7 +134,7 @@ func parseQuoteHTML(body []byte, instrument string, fetchedAt time.Time) (Quote,
 			return Quote{}, fmt.Errorf("parse open price: %w", err)
 		}
 
-		return Quote{
+		quote := Quote{
 			Instrument: instrument,
 			Price:      price,
 			High:       high,
@@ -142,10 +143,19 @@ func parseQuoteHTML(body []byte, instrument string, fetchedAt time.Time) (Quote,
 			QuoteDate:  quoteDate,
 			Source:     "上海黄金交易所延时行情",
 			FetchedAt:  fetchedAt,
-		}, nil
+		}
+		if isZeroQuote(quote) {
+			return Quote{}, errors.New("invalid zero quote from sge")
+		}
+
+		return quote, nil
 	}
 
 	return Quote{}, fmt.Errorf("instrument %q not found in sge quote page", instrument)
+}
+
+func isZeroQuote(quote Quote) bool {
+	return quote.Price == 0 && quote.High == 0 && quote.Low == 0 && quote.Open == 0
 }
 
 func parseQuoteDate(html string, loc *time.Location) (time.Time, error) {

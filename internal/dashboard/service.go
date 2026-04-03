@@ -58,6 +58,8 @@ func (s *Service) Build(ctx context.Context, instrument string, pos advice.Posit
 		if err != nil {
 			if fallback, fallbackOK := s.latestSnapshot(ctx, instrument); fallbackOK {
 				quote = fallback
+			} else if fallback, fallbackOK := s.latestHistoryQuote(ctx, instrument); fallbackOK {
+				quote = fallback
 			} else {
 				return Response{}, err
 			}
@@ -127,6 +129,31 @@ func (s *Service) latestSnapshot(ctx context.Context, instrument string) (market
 		return market.Quote{}, false
 	}
 	return item, true
+}
+
+func (s *Service) latestHistoryQuote(ctx context.Context, instrument string) (market.Quote, bool) {
+	if s.Market == nil {
+		return market.Quote{}, false
+	}
+
+	end := time.Now()
+	start := end.AddDate(-1, 0, 0)
+	history, err := s.Market.FetchHistory(ctx, instrument, start, end)
+	if err != nil || len(history) == 0 {
+		return market.Quote{}, false
+	}
+
+	last := history[len(history)-1]
+	return market.Quote{
+		Instrument: instrument,
+		Price:      last.Close,
+		High:       last.High,
+		Low:        last.Low,
+		Open:       last.Open,
+		QuoteDate:  last.Date,
+		Source:     "上海黄金交易所历史行情回退",
+		FetchedAt:  time.Now(),
+	}, true
 }
 
 func toClosePoints(history []market.DailyQuote, quote market.Quote) []Point {

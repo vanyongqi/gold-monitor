@@ -130,7 +130,14 @@ func (c *Client) historyURL(start, end time.Time, instrument string, page int) s
 	if page > 0 {
 		values.Set("p", strconv.Itoa(page))
 	}
-	return defaultHistoryURL + "?" + values.Encode()
+	return c.historyBaseURL() + "?" + values.Encode()
+}
+
+func (c *Client) historyBaseURL() string {
+	if strings.TrimSpace(c.HistoryBaseURL) != "" {
+		return c.HistoryBaseURL
+	}
+	return defaultHistoryURL
 }
 
 func parseDailyQuotesHTML(body []byte, instrument string, loc *time.Location) ([]DailyQuote, error) {
