@@ -133,3 +133,48 @@ func (s *SQLiteStore) ListPriceSnapshots(ctx context.Context, instrument string,
 	}
 	return result, nil
 }
+
+func (s *SQLiteStore) GetLatestPriceSnapshot(ctx context.Context, instrument string) (market.Quote, bool, error) {
+	row := s.db.QueryRowContext(
+		ctx,
+		`SELECT instrument, price, open, high, low, quote_date, source, fetched_at
+		FROM price_snapshots
+		WHERE instrument = ?
+		ORDER BY fetched_at DESC
+		LIMIT 1`,
+		instrument,
+	)
+
+	var (
+		quoteDateRaw string
+		fetchedAtRaw string
+		item         market.Quote
+	)
+	if err := row.Scan(
+		&item.Instrument,
+		&item.Price,
+		&item.Open,
+		&item.High,
+		&item.Low,
+		&quoteDateRaw,
+		&item.Source,
+		&fetchedAtRaw,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return market.Quote{}, false, nil
+		}
+		return market.Quote{}, false, fmt.Errorf("query latest price snapshot: %w", err)
+	}
+
+	var err error
+	item.QuoteDate, err = time.ParseInLocation("2006-01-02", quoteDateRaw, time.Local)
+	if err != nil {
+		return market.Quote{}, false, fmt.Errorf("parse latest quote date: %w", err)
+	}
+	item.FetchedAt, err = time.Parse(time.RFC3339Nano, fetchedAtRaw)
+	if err != nil {
+		return market.Quote{}, false, fmt.Errorf("parse latest fetched at: %w", err)
+	}
+
+	return item, true, nil
+}

@@ -56,9 +56,13 @@ func (s *Service) Build(ctx context.Context, instrument string, pos advice.Posit
 		var err error
 		quote, err = s.Market.FetchQuote(ctx, instrument)
 		if err != nil {
-			return Response{}, err
+			if fallback, fallbackOK := s.latestSnapshot(ctx, instrument); fallbackOK {
+				quote = fallback
+			} else {
+				return Response{}, err
+			}
 		}
-		if s.Cache != nil {
+		if s.Cache != nil && quote.Price > 0 {
 			s.Cache.Set(quote)
 		}
 	}
@@ -111,6 +115,18 @@ func (s *Service) snapshotQuotes(ctx context.Context, instrument string) []marke
 		return []market.Quote{quote}
 	}
 	return nil
+}
+
+func (s *Service) latestSnapshot(ctx context.Context, instrument string) (market.Quote, bool) {
+	if s.Store == nil {
+		return market.Quote{}, false
+	}
+
+	item, ok, err := s.Store.GetLatestPriceSnapshot(ctx, instrument)
+	if err != nil || !ok {
+		return market.Quote{}, false
+	}
+	return item, true
 }
 
 func toClosePoints(history []market.DailyQuote, quote market.Quote) []Point {

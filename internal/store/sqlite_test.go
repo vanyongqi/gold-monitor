@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 func TestSQLiteStoreSaveAndListSnapshots(t *testing.T) {
 	t.Parallel()
 
-	db, err := OpenSQLite("file::memory:?cache=shared")
+	db, err := OpenSQLite(fmt.Sprintf("file:sqlite-save-list-%d?mode=memory&cache=shared", time.Now().UnixNano()))
 	if err != nil {
 		t.Fatalf("OpenSQLite() err = %v", err)
 	}
@@ -67,7 +68,7 @@ func TestSQLiteStoreSaveAndListSnapshots(t *testing.T) {
 func TestSQLiteStoreListPriceSnapshotsReturnsLatestWindow(t *testing.T) {
 	t.Parallel()
 
-	db, err := OpenSQLite("file::memory:?cache=shared")
+	db, err := OpenSQLite(fmt.Sprintf("file:sqlite-window-%d?mode=memory&cache=shared", time.Now().UnixNano()))
 	if err != nil {
 		t.Fatalf("OpenSQLite() err = %v", err)
 	}
@@ -101,5 +102,45 @@ func TestSQLiteStoreListPriceSnapshotsReturnsLatestWindow(t *testing.T) {
 	}
 	if got[0].Price != 1003 || got[1].Price != 1004 {
 		t.Fatalf("unexpected prices: %.2f %.2f", got[0].Price, got[1].Price)
+	}
+}
+
+func TestSQLiteStoreGetLatestPriceSnapshot(t *testing.T) {
+	t.Parallel()
+
+	db, err := OpenSQLite(fmt.Sprintf("file:sqlite-latest-%d?mode=memory&cache=shared", time.Now().UnixNano()))
+	if err != nil {
+		t.Fatalf("OpenSQLite() err = %v", err)
+	}
+	defer db.Close()
+
+	ctx := context.Background()
+	repo := NewSQLiteStore(db)
+	base := time.Date(2026, 4, 1, 10, 0, 0, 0, time.Local)
+	for i := 0; i < 3; i++ {
+		err := repo.SavePriceSnapshot(ctx, market.Quote{
+			Instrument: "Au99.99",
+			Price:      float64(1000 + i),
+			Open:       1000,
+			High:       1005,
+			Low:        995,
+			QuoteDate:  base,
+			FetchedAt:  base.Add(time.Duration(i) * 24 * time.Hour),
+			Source:     "test",
+		})
+		if err != nil {
+			t.Fatalf("SavePriceSnapshot() err = %v", err)
+		}
+	}
+
+	got, ok, err := repo.GetLatestPriceSnapshot(ctx, "Au99.99")
+	if err != nil {
+		t.Fatalf("GetLatestPriceSnapshot() err = %v", err)
+	}
+	if !ok {
+		t.Fatal("expected latest snapshot")
+	}
+	if got.Price != 1002 {
+		t.Fatalf("latest price = %.2f, want 1002", got.Price)
 	}
 }
