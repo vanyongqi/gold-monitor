@@ -50,6 +50,30 @@
       }));
   }
 
+  function buildChartRenderSignature(input) {
+    const payload = {
+      mode: input?.mode || "",
+      valueLabel: input?.valueLabel || "",
+      width: Number(input?.width || 0),
+      height: Number(input?.height || 0),
+      data: Array.isArray(input?.data)
+        ? input.data.map((item) => ({
+            time: item.time,
+            value: Number(item.value),
+          }))
+        : [],
+      dashedLines: Array.isArray(input?.dashedLines)
+        ? input.dashedLines.map((item) => ({
+            value: Number(item.value),
+            color: item.color || "",
+            label: item.label || "",
+          }))
+        : [],
+    };
+
+    return JSON.stringify(payload);
+  }
+
   function getTradingSessionStatus(input) {
     const date = input instanceof Date ? input : new Date(input);
     if (Number.isNaN(date.getTime())) {
@@ -111,6 +135,7 @@
   }
 
   const api = {
+    buildChartRenderSignature,
     buildXAxisTicks,
     formatXAxisLabel,
     getTradingSessionStatus,

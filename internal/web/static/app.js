@@ -9,7 +9,7 @@ const state = {
 };
 
 const $ = (id) => document.getElementById(id);
-const { buildXAxisTicks, formatXAxisLabel, getTradingSessionStatus } = window.ChartUtils;
+const { buildChartRenderSignature, buildXAxisTicks, formatXAxisLabel, getTradingSessionStatus } = window.ChartUtils;
 const tooltip = $("chart-tooltip");
 
 function number(value, digits = 2) {
@@ -156,6 +156,10 @@ function updateSummary(data) {
     reasons.appendChild(li);
   });
 
+  renderCharts();
+}
+
+function renderCharts() {
   renderHistoryChart();
   renderSecondaryChart();
 }
@@ -218,9 +222,25 @@ function renderHistoryChart() {
   const data = filterHistory(state.historyPeriod);
   const breakEven = state.dashboard.key_levels.break_even || 0;
   const target = state.dashboard.key_levels.target_one || 0;
+  const dashedLines = [
+    breakEven ? { value: breakEven, color: "#b45309", label: "回本线" } : null,
+    target ? { value: target, color: "#2f855a", label: "目标线" } : null,
+  ].filter(Boolean);
+  const signature = buildChartRenderSignature({
+    mode: "date",
+    valueLabel: "价格",
+    width: 900,
+    height: 320,
+    data,
+    dashedLines,
+  });
+  if (svg.dataset.renderSignature === signature) {
+    return;
+  }
   setChartDataset(svg, data, 900, 320);
   svg.dataset.axisMode = "date";
   svg.dataset.valueLabel = "价格";
+  svg.dataset.renderSignature = signature;
   renderWithTooltip(svg, buildLineChart(data, {
     width: 900,
     height: 320,
@@ -228,10 +248,7 @@ function renderHistoryChart() {
     valueLabel: "价格",
     lineColor: "#b7791f",
     areaColor: "rgba(183,121,31,0.18)",
-    dashedLines: [
-      breakEven ? { value: breakEven, color: "#b45309", label: "回本线" } : null,
-      target ? { value: target, color: "#2f855a", label: "目标线" } : null,
-    ].filter(Boolean),
+    dashedLines,
   }));
 }
 
@@ -243,9 +260,24 @@ function renderSecondaryChart() {
 
   if (state.secondaryMode === "profit" && state.dashboard.profit_trend?.length) {
     data = state.dashboard.profit_trend.slice(-90);
+    const dashedLines = [{ value: 0, color: "#b45309", label: "收益为 0" }];
+    const signature = buildChartRenderSignature({
+      mode: "date",
+      valueLabel: "收益",
+      width: 900,
+      height: 260,
+      data,
+      dashedLines,
+    });
+    if (svg.dataset.renderSignature === signature) {
+      title.textContent = "收益曲线";
+      caption.textContent = "这条线展示的是按你的成本和卖出手续费折算后的净收益变化。";
+      return;
+    }
     setChartDataset(svg, data, 900, 260);
     svg.dataset.axisMode = "date";
     svg.dataset.valueLabel = "收益";
+    svg.dataset.renderSignature = signature;
     title.textContent = "收益曲线";
     caption.textContent = "这条线展示的是按你的成本和卖出手续费折算后的净收益变化。";
     renderWithTooltip(svg, buildLineChart(data, {
@@ -255,7 +287,7 @@ function renderSecondaryChart() {
       valueLabel: "收益",
       lineColor: "#2f855a",
       areaColor: "rgba(47,133,90,0.16)",
-      dashedLines: [{ value: 0, color: "#b45309", label: "收益为 0" }],
+      dashedLines,
     }));
     return;
   }
@@ -264,9 +296,22 @@ function renderSecondaryChart() {
   data = (state.dashboard.live_trend?.length ? state.dashboard.live_trend : state.liveSeries)
     .slice(-120)
     .map((item) => ({ time: item.time, value: item.value }));
+  const signature = buildChartRenderSignature({
+    mode: "time",
+    valueLabel: "价格",
+    width: 900,
+    height: 260,
+    data,
+    dashedLines: [],
+  });
+  if (svg.dataset.renderSignature === signature) {
+    caption.textContent = "这条线来自后端统一抓价后的快照，适合判断短线节奏。";
+    return;
+  }
   setChartDataset(svg, data, 900, 260);
   svg.dataset.axisMode = "time";
   svg.dataset.valueLabel = "价格";
+  svg.dataset.renderSignature = signature;
   caption.textContent = "这条线来自后端统一抓价后的快照，适合判断短线节奏。";
   renderWithTooltip(svg, buildLineChart(data, {
     width: 900,
@@ -284,6 +329,8 @@ function setChartDataset(svg, data, width, height) {
   const padding = { top: 20, right: 20, bottom: 46, left: 46 };
   if (!data.length || data.length === 1) {
     svg.dataset.points = "[]";
+    svg.dataset.axisMode = "";
+    svg.dataset.valueLabel = "";
     return;
   }
   const values = data.map((item) => item.value);
@@ -306,6 +353,11 @@ function setChartDataset(svg, data, width, height) {
 function renderWithTooltip(svg, markup) {
   svg.innerHTML = markup;
   const data = JSON.parse(svg.dataset.points || "[]");
+  if (!data.length) {
+    svg.onmousemove = null;
+    svg.onmouseleave = null;
+    return;
+  }
   const xAxisMode = svg.dataset.axisMode || "date";
   const valueLabel = svg.dataset.valueLabel || "价格";
   const crosshair = svg.querySelector("#chart-crosshair");
