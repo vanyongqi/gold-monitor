@@ -144,3 +144,54 @@ func TestSQLiteStoreGetLatestPriceSnapshot(t *testing.T) {
 		t.Fatalf("latest price = %.2f, want 1002", got.Price)
 	}
 }
+
+func TestSQLiteStoreGetLatestPriceSnapshotSkipsZeroQuotes(t *testing.T) {
+	t.Parallel()
+
+	db, err := OpenSQLite(fmt.Sprintf("file:sqlite-latest-valid-%d?mode=memory&cache=shared", time.Now().UnixNano()))
+	if err != nil {
+		t.Fatalf("OpenSQLite() err = %v", err)
+	}
+	defer db.Close()
+
+	ctx := context.Background()
+	repo := NewSQLiteStore(db)
+	base := time.Date(2026, 4, 3, 10, 0, 0, 0, time.Local)
+
+	valid := market.Quote{
+		Instrument: "Au99.99",
+		Price:      1034.42,
+		Open:       1030,
+		High:       1042,
+		Low:        1020,
+		QuoteDate:  base,
+		FetchedAt:  base,
+		Source:     "test",
+	}
+	zero := market.Quote{
+		Instrument: "Au99.99",
+		Price:      0,
+		Open:       0,
+		High:       0,
+		Low:        0,
+		QuoteDate:  base.Add(24 * time.Hour),
+		FetchedAt:  base.Add(24 * time.Hour),
+		Source:     "test",
+	}
+	for _, snapshot := range []market.Quote{valid, zero} {
+		if err := repo.SavePriceSnapshot(ctx, snapshot); err != nil {
+			t.Fatalf("SavePriceSnapshot() err = %v", err)
+		}
+	}
+
+	got, ok, err := repo.GetLatestPriceSnapshot(ctx, "Au99.99")
+	if err != nil {
+		t.Fatalf("GetLatestPriceSnapshot() err = %v", err)
+	}
+	if !ok {
+		t.Fatal("expected latest valid snapshot")
+	}
+	if got.Price != valid.Price {
+		t.Fatalf("latest valid price = %.2f, want %.2f", got.Price, valid.Price)
+	}
+}

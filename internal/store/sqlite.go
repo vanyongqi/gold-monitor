@@ -140,6 +140,10 @@ func (s *SQLiteStore) GetLatestPriceSnapshot(ctx context.Context, instrument str
 		`SELECT instrument, price, open, high, low, quote_date, source, fetched_at
 		FROM price_snapshots
 		WHERE instrument = ?
+		  AND price > 0
+		  AND open > 0
+		  AND high > 0
+		  AND low > 0
 		ORDER BY fetched_at DESC
 		LIMIT 1`,
 		instrument,
